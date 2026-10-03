@@ -1,0 +1,39 @@
+# OpenShell network policy preset: let the agent's curl reach the Pitcrew tool server on the host.
+# Pattern follows NemoClaw v0.0.130 nemoclaw-blueprint/policies/presets/local-inference.yaml
+# (host.openshell.internal is the documented sandbox-to-host bridge; allowed_ips is the one
+# permitted exception for it).
+#
+#   nemoclaw $SANDBOX_NAME policy add --from-file scripts/openshell/pitcrew-toolserver.yaml --dry-run
+#   nemoclaw $SANDBOX_NAME policy add --from-file scripts/openshell/pitcrew-toolserver.yaml --yes
+#
+# If requests are still blocked, run `openshell term` and copy the exact binary path it reports
+# into `binaries:` below.
+preset:
+  name: pitcrew-toolserver
+  description: "Pitcrew tool server on the GB10 host (port 9000)"
+network_policies:
+  pitcrew_toolserver:
+    name: pitcrew_toolserver
+    endpoints:
+      - host: host.openshell.internal
+        port: 9000
+        protocol: rest
+        enforcement: enforce
+        allowed_ips:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+        rules:
+          - allow: { method: GET,  path: "/incidents/current" }
+          - allow: { method: GET,  path: "/metrics" }
+          - allow: { method: GET,  path: "/processes/top" }
+          - allow: { method: GET,  path: "/logs/service" }
+          - allow: { method: GET,  path: "/queue/status" }
+          - allow: { method: GET,  path: "/impact" }
+          - allow: { method: GET,  path: "/health" }
+          - allow: { method: POST, path: "/approvals" }
+          - allow: { method: POST, path: "/approvals/*/deny" }
+          - allow: { method: POST, path: "/actions/stop_test_program" }
+          - allow: { method: POST, path: "/incidents/*/report" }
+    binaries:
+      - { path: /usr/bin/curl }

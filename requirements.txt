@@ -1,0 +1,27 @@
+# Pitcrew host-side runtime (Python 3.12, linux aarch64 / GB10).
+# Versions are pinned to the wheels shipped in the offline kit so this installs without internet:
+#   pip install --no-index \
+#     --find-links ~/Desktop/Deploy_starter_kit/01_installers/python-wheels-linux-arm64-py312 \
+#     --find-links vendor/wheels \
+#     -r requirements.txt
+# psutil is NOT in the kit; it is pre-downloaded to vendor/wheels/ (or comes from PyPI when online).
+#
+# The host code never calls the LLM. Only the OpenClaw agent in the NemoClaw sandbox talks to vLLM,
+# and the Discord channel is owned by OpenClaw, so there is no openai/discord.py dependency here.
+
+# Pitcrew tools API, sample AI service, dashboard
+fastapi==0.142.2
+uvicorn==0.54.0
+pydantic==2.13.5
+
+# Machine measurements: memory, top processes, process identity before stopping one
+psutil==7.2.2
+
+# Health probes, alert trigger to the OpenClaw hook endpoint, load generator
+httpx==0.28.1
+
+# Thresholds, ports, and tokens from .env
+python-dotenv==1.2.4
+
+# Tests (impact math, allowlist refusal, deny path, rules)
+pytest==9.1.1

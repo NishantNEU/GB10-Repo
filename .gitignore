@@ -1,0 +1,19 @@
+# secrets
+.env
+
+# runtime state
+data/*.db
+data/*.db-wal
+data/*.db-shm
+logs/
+run/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# recordings live outside the repo (kit 08_demo_backup/)
+*.mp4
+*.webm
