@@ -22,7 +22,11 @@ PRICE = {cid: price for cid, _, _, price in CUSTOMERS}
 def seed(reset: bool = False) -> None:
     conn = db.connect()
     conn.executemany(
-        "INSERT OR REPLACE INTO customers (id, name, tier) VALUES (?, ?, ?)",
+        """INSERT INTO customers (id, name, tier)
+           VALUES (?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             name = excluded.name,
+             tier = excluded.tier""",
         [(cid, name, tier) for cid, name, tier, _ in CUSTOMERS],
     )
     if reset:

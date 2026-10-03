@@ -38,21 +38,21 @@ def compute(conn: sqlite3.Connection, now: float | None = None,
     for r in rows:
         wait = (now - r["created_at"]) if r["status"] == "pending" else (r["started_at"] - r["created_at"])
         if wait > t:
-            delayed.append((r, now - r["created_at"]))
+            delayed.append((r, wait))
 
     per_customer: dict[str, dict] = {}
-    for r, age in delayed:
+    for r, wait in delayed:
         c = per_customer.setdefault(r["customer_id"], {
             "id": r["customer_id"], "name": r["name"], "tier": r["tier"],
             "delayed_jobs": 0, "longest_wait_s": 0.0, "job_ids": [],
         })
         c["delayed_jobs"] += 1
-        c["longest_wait_s"] = round(max(c["longest_wait_s"], age), 1)
+        c["longest_wait_s"] = round(max(c["longest_wait_s"], wait), 1)
         c["job_ids"].append(r["id"])
     # Priority rule (spec section 4): tier first, then longest wait.
     customers = sorted(per_customer.values(), key=lambda c: (TIER_RANK[c["tier"]], -c["longest_wait_s"]))
 
-    longest = max((age for _, age in delayed), default=0.0)
+    longest = max((wait for _, wait in delayed), default=0.0)
     return {
         "delayed_jobs": len(delayed),
         "affected_customers": len(customers),
