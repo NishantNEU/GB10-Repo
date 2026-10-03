@@ -32,4 +32,6 @@
 - [ ] Check `/processes/top` shows `pitcrew-test-hog` once Docker access works.
 - [ ] Optional dashboard only if the full flow passes by 16:45.
 
+Read-only live check on the GB10: `.venv/bin/python -m toolserver.smoke`. After starting the controlled fault, run `.venv/bin/python -m toolserver.smoke --expect-hog`. This reports the incident, health, and impact values without making an approval or stop request.
+
 Test: `.venv/bin/pytest -q tests/test_toolserver.py tests/test_contracts.py`
