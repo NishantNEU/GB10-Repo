@@ -177,7 +177,8 @@ def create_approval(req: ApprovalRequest) -> dict:
         sent_via = approvals.send_code(approval_id, req.incident_id, req.target, req.reason, code)
     except Exception as e:
         conn.execute("UPDATE approvals SET status = 'expired', decided_at = ? WHERE id = ?", (time.time(), approval_id))
-        raise HTTPException(502, f"could not deliver the approval code: {e}") from e
+        # Network exceptions can include the Telegram URL, which contains the bot token.
+        raise HTTPException(502, "could not deliver the approval code; check the approvals bot and connection") from e
     conn.execute("UPDATE incidents SET status = 'awaiting_approval' WHERE id = ?", (req.incident_id,))
     return {"approval_id": approval_id, "status": "pending", "expires_in_s": config.APPROVAL_TTL_S,
             "code_sent_via": sent_via,

@@ -70,6 +70,21 @@ def test_expired_code(client, monkeypatch):
     assert client.stopped == []
 
 
+def test_delivery_failure_expires_approval_without_exposing_bot_token(client, conn, monkeypatch):
+    token = "secret-bot-token"
+
+    def failed_delivery(*_args):
+        raise RuntimeError(f"https://api.telegram.org/bot{token}/sendMessage failed")
+
+    monkeypatch.setattr(approvals, "send_code", failed_delivery)
+    response = client.post("/approvals", json={"incident_id": "INC-0001", "action": "stop_test_program",
+                                              "target": config.HOG_CONTAINER, "reason": "largest memory user"})
+    assert response.status_code == 502
+    assert token not in response.text
+    approval = conn.execute("SELECT status FROM approvals").fetchone()
+    assert approval["status"] == "expired"
+
+
 def test_only_the_test_container_can_be_requested(client):
     r = client.post("/approvals", json={"incident_id": "INC-0001", "action": "stop_test_program",
                                         "target": "pitcrew-vllm", "reason": "x"})
