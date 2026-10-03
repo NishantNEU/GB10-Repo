@@ -14,8 +14,8 @@ def test_opens_one_incident_and_triggers_once(conn, monkeypatch):
     for i in range(3):
         add_job(conn, "CUST-NORTHWIND", time.time() - 60 - i)
 
-    first = detector.tick(conn, trigger=lambda iid, s: calls.append(iid))
-    second = detector.tick(conn, trigger=lambda iid, s: calls.append(iid))
+    first = detector.tick(conn, trigger=lambda iid, s, d: calls.append(iid))
+    second = detector.tick(conn, trigger=lambda iid, s, d: calls.append(iid))
 
     assert first == "INC-0001" and second is None
     assert calls == ["INC-0001"]
@@ -32,7 +32,18 @@ def test_trigger_failure_still_records_incident(conn, monkeypatch):
     monkeypatch.setattr(config, "INCIDENT_MIN_DELAYED", 1)
     add_job(conn, "CUST-ACORN", time.time() - 60)
 
-    def boom(*_):
+    def boom(*_args):
         raise RuntimeError("sandbox not up")
 
     assert detector.tick(conn, trigger=boom) == "INC-0001"
+
+
+def test_no_new_incident_during_cooldown_after_deny(conn, monkeypatch):
+    """A denied fix leaves the problem in place; the detector must not page again right away."""
+    monkeypatch.setattr(config, "INCIDENT_MIN_DELAYED", 1)
+    add_job(conn, "CUST-ACORN", time.time() - 60)
+    assert detector.tick(conn, trigger=lambda *a: None) == "INC-0001"
+    conn.execute("UPDATE incidents SET status = 'unresolved' WHERE id = 'INC-0001'")  # human denied
+    assert detector.tick(conn, trigger=lambda *a: None) is None                       # still delayed
+    monkeypatch.setattr(config, "INCIDENT_COOLDOWN_S", 0)
+    assert detector.tick(conn, trigger=lambda *a: None) == "INC-0002"                 # after cool-down

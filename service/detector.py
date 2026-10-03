@@ -22,10 +22,10 @@ log = logging.getLogger("detector")
 stop = threading.Event()
 
 
-def _trigger(incident_id: str, summary: str) -> None:
+def _trigger(incident_id: str, summary: str, details: dict) -> None:
     # Imported lazily so the detector still records incidents if the agent side isn't set up.
     from skills.trigger import trigger_agent
-    trigger_agent(incident_id, summary)
+    trigger_agent(incident_id, summary, details=details)
 
 
 def tick(conn, trigger=_trigger) -> str | None:
@@ -42,6 +42,9 @@ def tick(conn, trigger=_trigger) -> str | None:
 
     if db.open_incident(conn) is not None:
         return None
+    last = conn.execute("SELECT MAX(opened_at) FROM incidents").fetchone()[0]
+    if last is not None and now - last < config.INCIDENT_COOLDOWN_S:
+        return None  # cool-down: the human already decided on the last incident
     imp = impact.compute(conn, now=now)
     if imp["delayed_jobs"] < config.INCIDENT_MIN_DELAYED:
         return None
@@ -59,7 +62,7 @@ def tick(conn, trigger=_trigger) -> str | None:
                f"memory available {mem['mem_avail_gb']} GB")
     log.warning("incident %s opened: %s", incident_id, summary)
     try:
-        trigger(incident_id, summary)
+        trigger(incident_id, summary, trigger_info)
         log.info("agent triggered for %s", incident_id)
     except Exception:  # the incident stays recorded even if the agent can't be reached
         log.exception("could not trigger the agent for %s", incident_id)

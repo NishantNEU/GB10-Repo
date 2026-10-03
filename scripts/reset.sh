@@ -12,7 +12,7 @@ docker rm -f "$HOG_CONTAINER" >/dev/null 2>&1 && say "removed $HOG_CONTAINER" ||
 # Stop service + detector first so nothing writes while the tables are cleared.
 tmux kill-window -t pitcrew:service 2>/dev/null || true
 tmux kill-window -t pitcrew:detector 2>/dev/null || true
-rm -f "$REPO_DIR/run/service_status.json"
+rm -f "$REPO_DIR/run/service_status.json" "$REPO_DIR"/logs/trigger-INC-*.log "$REPO_DIR/logs/approval_codes.log"
 (cd "$REPO_DIR" && .venv/bin/python -m service.seed --reset)
 
 "$REPO_DIR/scripts/run_all.sh"   # starts whatever isn't running (service, detector, tool server)

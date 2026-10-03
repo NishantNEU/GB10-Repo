@@ -19,8 +19,8 @@ mkdir -p logs
 start_window() {
   local w=$1 cmd=${CMDS[$1]}
   tmux kill-window -t "$SESSION:$w" 2>/dev/null || true
-  # Keep the pane open after a crash so the traceback stays visible; tee to logs/<window>.log.
-  tmux new-window -d -t "$SESSION" -n "$w" "cd '$REPO_DIR' && $cmd 2>&1 | tee -a logs/$w.log; echo '[exited]'; exec bash"
+  # Keep the pane open after a crash so the traceback stays visible; tee to logs/<window>.out (the programs write their own *.log).
+  tmux new-window -d -t "$SESSION" -n "$w" "cd '$REPO_DIR' && $cmd 2>&1 | tee -a logs/$w.out; echo '[exited]'; exec bash"
   say "started $w: $cmd"
 }
 

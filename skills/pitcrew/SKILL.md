@@ -39,7 +39,7 @@ BASE=http://host.openshell.internal:9000
 ### A. When a message starts with `PITCREW_ALERT`
 
 1. Investigate in this order, one command each: **Incident → Metrics → Processes → Logs → Queue → Impact.**
-2. Post the **Incident opened** message (see Messages).
+2. Do **not** post an "Incident opened" message: the Pitcrew monitor already posted it, with the numbers.
 3. Decide the diagnosis:
    - **Likely cause:** which process or container, and why you think so.
    - **Evidence:** 2–4 specific observations, each naming the tool it came from (for example "processes: `pitcrew-test-hog` is the largest memory user, 24 GB").
@@ -53,13 +53,17 @@ BASE=http://host.openshell.internal:9000
 ### B. When the engineer replies `approve <code>`
 
 1. Call **Stop** with that `approval_id` and the code exactly as typed. If you no longer have the `approval_id`, get it from **Incident** (`pending_approval_id`).
-2. If the tool server refuses (wrong or expired code), say so, take no other action, and ask the engineer to try again or deny.
-3. If it succeeded: run `sleep 20`, then **Health**, **Queue** and **Impact**.
+2. If the tool server refuses a **wrong code**, say so, take no other action, and ask the engineer to try again or reply "deny".
+   If it says the approval is **expired** or locked, say so and stop. Request a new approval only if the engineer replies "new code".
+   Never call **Deny** yourself: only the engineer can deny.
+3. If it succeeded: call **Queue** (note `pending`), run `sleep 20`, then call **Health**, **Queue** again, and **Impact**.
 4. Post the **Recovery update** and save the report.
-   - Say **resolved** only if Health is `healthy` **and** the queue is shrinking.
+   - The queue is **draining** if the second `pending` is lower than the first; otherwise it is **still rising**. Say exactly one of these.
+   - Say **resolved** only if Health is `healthy` **and** the queue is draining.
    - Otherwise say **unresolved** and name what is still wrong.
+   - Delayed-job counts can be higher than before the approval: jobs kept piling up while the service was slow. Report them as "customer impact so far", never as "remaining".
 
-### C. When the engineer replies `deny`
+### C. When the engineer replies `deny` (only then)
 
 1. Call **Deny**.
 2. Post: "Approval denied. No action taken. `pitcrew-test-hog` is still running; the service is still degraded." and include the current Impact numbers.
@@ -69,13 +73,7 @@ BASE=http://host.openshell.internal:9000
 
 Keep each message under 8 lines. Copy numbers **exactly** from the tool output.
 
-**Incident opened**
-```
-🚨 Incident <id> opened — <HH:MM>
-The sample AI service is <degraded/down>. Memory available fell to <metrics value> GB.
-Likely cause: <container/process>. Checking evidence before recommending an action.
-Impact so far: <delayed_jobs> jobs delayed across <affected_customers> fictional customers (longest wait <longest_wait>).
-```
+The **Incident opened** alert is posted by the Pitcrew monitor, not by you.
 
 **Approval requested**
 ```
@@ -89,8 +87,9 @@ A one-time code was sent to the on-call engineer. Reply "approve <code>" or "den
 ```
 ✅ Recovery update — incident <id>        (or ⚠️ Unresolved — incident <id>)
 Action: pitcrew-test-hog stopped at <HH:MM> after approval.
-Service: <healthy/degraded>. Memory available: <metrics value> GB.
-Delayed jobs: <delayed_jobs> remaining of <earlier count>; backlog <backlog>.
+Service: <healthy/degraded>, <jobs_per_min> jobs/min. Memory available: <mem_avail_gb> GB.
+Queue: <pending> pending, <draining (down from N) / still rising (up from N)> over 20 s.
+Customer impact so far: <delayed_jobs> jobs across <affected_customers> fictional customers waited over 30 s (longest wait <longest_wait>).
 Estimated billable work waiting: $<estimated_value> (estimate, not lost revenue).
 ```
 

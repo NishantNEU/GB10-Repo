@@ -47,6 +47,9 @@ MEM_THRESHOLD_GB = _float("MEM_THRESHOLD_GB", 30.0)
 DELAY_THRESHOLD_S = _float("DELAY_THRESHOLD_S", 30.0)  # a job is "delayed" after waiting this long
 INCIDENT_MIN_DELAYED = int(os.environ.get("INCIDENT_MIN_DELAYED", "5"))
 DETECTOR_INTERVAL_S = _float("DETECTOR_INTERVAL_S", 5.0)
+# After an incident opens, don't open another for this long. Without it, a denied fix (the
+# problem is still there) reopens a new incident seconds later and pages the human again.
+INCIDENT_COOLDOWN_S = _float("INCIDENT_COOLDOWN_S", 600.0)
 
 # Approvals (Backend)
 APPROVER_BOT_TOKEN = os.environ.get("APPROVER_BOT_TOKEN", "")
