@@ -85,3 +85,24 @@ def test_report_closes_incident(client):
 def test_read_endpoints_answer(client):
     for path in ("/metrics", "/processes/top?n=3", "/logs/service?lines=5", "/queue/status", "/impact", "/health"):
         assert client.get(path).status_code == 200, path
+
+
+def test_processes_top_still_shows_hog_when_host_process_scan_is_denied(client, monkeypatch):
+    from types import SimpleNamespace
+
+    def denied_process_scan(*_args, **_kwargs):
+        raise PermissionError("host process list unavailable")
+
+    def fake_docker(*args, **_kwargs):
+        if args[0] == "stats":
+            return SimpleNamespace(returncode=0, stdout="pitcrew-test-hog|28.5GiB / 32GiB\n"
+                                   "pitcrew-vllm|22.0GiB / 64GiB\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(app_module.psutil, "process_iter", denied_process_scan)
+    monkeypatch.setattr(docker_ops, "_docker", fake_docker)
+    result = client.get("/processes/top?n=1")
+    assert result.status_code == 200
+    assert result.json()["processes"] == [{"pid": None, "name": "docker container",
+                                            "rss_gb": 28.5, "container": "pitcrew-test-hog",
+                                            "source": "docker_stats"}]

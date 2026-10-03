@@ -10,6 +10,8 @@
 | `docker_ops.py` | Container name per process (cgroup → `docker ps`), label check, `docker stop` |
 | `stub_data.py` | Fixed responses for stub mode |
 
+`GET /processes/top` also reads `docker stats --no-stream`. This keeps the named test container visible in the investigation if host process inspection or cgroup names are unavailable. Each row identifies its source (`host_process` or `docker_stats`); container memory is the container's usage, not a single process's RSS.
+
 ## Safety checks on `POST /actions/stop_test_program` (all must pass)
 
 1. The approval exists and is `pending` (single use; denied or used approvals return 409).

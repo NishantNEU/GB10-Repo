@@ -73,15 +73,22 @@ def processes_top(n: int = Query(5, ge=1, le=20)) -> dict:
         return {"processes": STUB["processes_top"]["processes"][:n]}
     names = docker_ops.container_names()
     procs = []
-    for p in psutil.process_iter(["pid", "name", "memory_info"]):
-        mi = p.info.get("memory_info")
-        if mi:
-            procs.append((mi.rss, p.info["pid"], p.info["name"]))
-    procs.sort(reverse=True)
-    return {"processes": [
-        {"pid": pid, "name": name, "rss_gb": round(rss / hostinfo.GB, 1),
-         "container": docker_ops.container_of(pid, names)}
-        for rss, pid, name in procs[:n]]}
+    try:
+        for p in psutil.process_iter(["pid", "name", "memory_info"]):
+            try:
+                mi = p.info.get("memory_info")
+                if mi:
+                    procs.append({"pid": p.info["pid"], "name": p.info["name"],
+                                  "rss_gb": round(mi.rss / hostinfo.GB, 1),
+                                  "container": docker_ops.container_of(p.info["pid"], names),
+                                  "source": "host_process"})
+            except (psutil.Error, OSError):
+                continue  # processes can exit or become inaccessible during the scan
+    except (psutil.Error, OSError):
+        pass  # Docker stats can still identify the controlled test container
+    procs.extend(docker_ops.container_memory())
+    procs.sort(key=lambda item: item["rss_gb"], reverse=True)
+    return {"processes": procs[:n]}
 
 
 @app.get("/logs/service")
