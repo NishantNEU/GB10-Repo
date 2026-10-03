@@ -17,6 +17,7 @@ import threading
 import time
 
 from common import config, db, hostinfo
+from common.logsetup import configure_logging
 from service.seed import CUSTOMERS, PRICE, seed
 
 log = logging.getLogger("sample_service")
@@ -86,11 +87,7 @@ def worker() -> None:
 
 
 def main() -> None:
-    config.LOG_DIR.mkdir(exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.FileHandler(config.SERVICE_LOG), logging.StreamHandler()],
-    )
+    configure_logging(config.SERVICE_LOG)
     seed()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stop.set())

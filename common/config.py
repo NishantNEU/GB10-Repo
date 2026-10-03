@@ -54,6 +54,13 @@ INCIDENT_COOLDOWN_S = _float("INCIDENT_COOLDOWN_S", 600.0)
 # Approvals (Backend)
 APPROVER_BOT_TOKEN = os.environ.get("APPROVER_BOT_TOKEN", "")
 ONCALL_CHAT_ID = os.environ.get("ONCALL_CHAT_ID", "")
+# Email delivery of approval codes (preferred when all four are set; see toolserver/approvals.py)
+APPROVER_EMAIL = os.environ.get("APPROVER_EMAIL", "")
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", "")
 APPROVAL_TTL_S = int(os.environ.get("APPROVAL_TTL_S", "300"))  # codes expire after 5 min
 APPROVAL_MAX_ATTEMPTS = int(os.environ.get("APPROVAL_MAX_ATTEMPTS", "3"))
 

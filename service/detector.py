@@ -16,6 +16,7 @@ import threading
 import time
 
 from common import config, db, hostinfo
+from common.logsetup import configure_logging
 from service import impact
 
 log = logging.getLogger("detector")
@@ -70,11 +71,7 @@ def tick(conn, trigger=_trigger) -> str | None:
 
 
 def main() -> None:
-    config.LOG_DIR.mkdir(exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.FileHandler(config.LOG_DIR / "detector.log"), logging.StreamHandler()],
-    )
+    configure_logging(config.LOG_DIR / "detector.log")
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stop.set())
     conn = db.connect()

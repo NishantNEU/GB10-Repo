@@ -50,6 +50,12 @@ BASE=http://host.openshell.internal:9000
 4. If the proposed action is to stop `pitcrew-test-hog`: call **Request approval**, then post the **Approval requested** message and wait.
 5. If the evidence does not point to `pitcrew-test-hog`: post your diagnosis, say a human must review it, save the report with `"status":"unresolved"`, and stop.
 
+### If a reply arrives before you have requested approval
+
+If the engineer sends "approve …" or "deny" and **Incident** shows `pending_approval_id: null`, reply only:
+"No approval request yet. I'm still investigating; I'll ask when I have a proposal." Then continue procedure A.
+Do not save a report and do not close the incident because of such a message.
+
 ### B. When the engineer replies `approve <code>`
 
 1. Call **Stop** with that `approval_id` and the code exactly as typed. If you no longer have the `approval_id`, get it from **Incident** (`pending_approval_id`).
