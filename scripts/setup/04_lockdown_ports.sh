@@ -32,5 +32,5 @@ for r in "${rules[@]}"; do
 done
 
 [[ "$mode" == apply ]] && say "test from another laptop on the venue network (should time out):
-  curl -m 3 http://$(ip -4 -o addr show "$(uplink_ifaces | head -1)" | awk '{print $4}' | cut -d/ -f1):$VLLM_PORT/v1/models"
+  curl -m 3 http://$(ip route get 8.8.8.8 | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}'):$VLLM_PORT/v1/models"
 exit 0

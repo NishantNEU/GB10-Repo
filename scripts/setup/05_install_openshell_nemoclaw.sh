@@ -27,6 +27,15 @@ if [[ ! -d "$HOME/NemoClaw" ]]; then
   tar xzf "$KIT_DIR/02_repos/NemoClaw-v0.0.130-prepared-linux-arm64.tar.gz" -C "$HOME" --exclude='._*'
 fi
 [[ -f "$HOME/NemoClaw/install.sh" ]] || die "expected $HOME/NemoClaw/install.sh"
-say "running the NemoClaw installer (interactive)"
-cd "$HOME/NemoClaw" && bash install.sh
+# The kit's install.sh is v0.0.130 but re-clones from GitHub; without a pin it takes the "lkg" tag
+# (v0.0.124 on 2026-10-03), whose files don't match this installer (MODULE_NOT_FOUND). Pin it.
+# Non-interactive install also onboards: existing vLLM on :8000 + Telegram from .env.
+# NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1 records the operator's acceptance of NVIDIA's notice:
+# only run this after the operator has accepted it.
+say "running the NemoClaw installer (v0.0.130, non-interactive, onboards sandbox '$SANDBOX_NAME')"
+cd "$HOME/NemoClaw"
+export TELEGRAM_BOT_TOKEN TELEGRAM_ALLOWED_IDS
+NEMOCLAW_INSTALL_TAG=v0.0.130 NEMOCLAW_NON_INTERACTIVE=1 NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1 \
+NEMOCLAW_NO_EXPRESS=1 NEMOCLAW_SANDBOX_NAME="$SANDBOX_NAME" NEMOCLAW_PROVIDER=vllm \
+  bash install.sh
 say "nemoclaw $(nemoclaw --version 2>&1 | head -1)"
