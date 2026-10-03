@@ -66,7 +66,7 @@ def _timeline(conn, incident) -> list[dict]:
                        f"service {trig.get('service_status', '?')}"}]
     for a in conn.execute("SELECT * FROM approvals WHERE incident_id = ? ORDER BY created_at", (incident["id"],)):
         events.append({"ts": a["created_at"], "kind": "approval",
-                       "text": f"Approval {a['id']} requested: stop {a['target']} (code sent to on-call phone)"})
+                       "text": f"Approval {a['id']} requested: stop {a['target']} (one-time code sent to the on-call engineer)"})
         if a["attempts"]:
             events.append({"ts": a["created_at"] + 0.001, "kind": "refused",
                            "text": f"{a['attempts']} wrong code attempt(s) refused; nothing stopped"})

@@ -62,7 +62,7 @@ Do not save a report and do not close the incident because of such a message.
 2. If the tool server refuses a **wrong code**, say so, take no other action, and ask the engineer to try again or reply "deny".
    If it says the approval is **expired** or locked, say so and stop. Request a new approval only if the engineer replies "new code".
    Never call **Deny** yourself: only the engineer can deny.
-3. If it succeeded: call **Queue** (note `pending`), run `sleep 20`, then call **Health**, **Queue** again, and **Impact**.
+3. If it succeeded: call **Queue** (note `pending`), run `sleep 30`, then call **Health**, **Queue** again, and **Impact**.
 4. Post the **Recovery update** and save the report.
    - The queue is **draining** if the second `pending` is lower than the first; otherwise it is **still rising**. Say exactly one of these.
    - Say **resolved** only if Health is `healthy` **and** the queue is draining.
@@ -94,7 +94,7 @@ A one-time code was sent to the on-call engineer. Reply "approve <code>" or "den
 ✅ Recovery update — incident <id>        (or ⚠️ Unresolved — incident <id>)
 Action: pitcrew-test-hog stopped at <HH:MM> after approval.
 Service: <healthy/degraded>, <jobs_per_min> jobs/min. Memory available: <mem_avail_gb> GB.
-Queue: <pending> pending, <draining (down from N) / still rising (up from N)> over 20 s.
+Queue: <pending> pending, <draining (down from N) / still rising (up from N)> over 30 s.
 Customer impact so far: <delayed_jobs> jobs across <affected_customers> fictional customers waited over 30 s (longest wait <longest_wait>).
 Estimated billable work waiting: $<estimated_value> (estimate, not lost revenue).
 ```
