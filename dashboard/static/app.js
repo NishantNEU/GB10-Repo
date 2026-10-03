@@ -1,5 +1,5 @@
 /* Pitcrew presenter console. All workflow mutations below are local demo state.
- * /api/live is the only network request and it exposes read-only GET evidence.
+ * /api/live reads toolserver GET evidence; /api/fintech-example computes a packaged fixture.
  */
 
 const $ = (id) => document.getElementById(id);
@@ -169,8 +169,26 @@ function renderTelemetry() {
     <div class="telemetry-row"><span>Host memory</span><strong>${esc(d.metrics?.mem_used_gb ?? '—')} GB used</strong></div>
     <div class="telemetry-row"><span>Service</span><strong class="${d.health?.status === 'degraded' ? 'warn' : 'good'}">${esc(capitalize(d.health?.status ?? 'Unknown'))}</strong></div>
     <div class="telemetry-row"><span>Queue pending</span><strong>${esc(d.queue?.pending ?? '—')}</strong></div>
+    <div class="telemetry-row"><span>Delayed jobs</span><strong>${esc(d.impact?.delayed_jobs ?? '—')}</strong></div>
+    <div class="telemetry-row"><span>Longest queue wait</span><strong>${esc(d.impact?.longest_wait ?? '—')}</strong></div>
+    <div class="telemetry-row"><span>Billable work waiting</span><strong>${d.impact?.estimated_value == null ? '—' : esc('$' + Number(d.impact.estimated_value).toFixed(2))}</strong></div>
     <div class="telemetry-row"><span>Top visible memory user</span><strong>${esc(top?.container || top?.name || '—')}</strong></div>
     <div class="telemetry-row"><span>Incident</span><strong>${esc(d.incident?.id || 'None')}</strong></div>`;
+}
+
+async function loadFintechExample() {
+  try {
+    const response = await fetch('/api/fintech-example', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Evidence unavailable');
+    const { evidence: e } = await response.json();
+    const amount = new Intl.NumberFormat(undefined, { style: 'currency', currency: e.currency }).format(e.affected_amount_cents / 100);
+    $('fintechContent').innerHTML = `<p class="fintech-explainer">A separate payment-authentication incident, calculated from synthetic logs by the merged FinTech adapter.</p>
+      <div class="fintech-metrics"><div><strong>${esc(e.failed_transactions)}</strong><span>failed payments</span></div><div><strong>${esc(e.affected_customers)}</strong><span>customers</span></div><div><strong>${esc(amount)}</strong><span>payment amount affected</span></div></div>
+      <p class="fintech-caution">Affected payment amount is not lost revenue.</p>
+      <details class="evidence-details"><summary>How these numbers were verified</summary><div class="evidence-detail-body"><p>${esc(e.received_error_events)} error events → ${esc(e.failed_transactions)} unique transactions. A retry of the same transaction is counted once.</p><p>Cause: <code>${esc(e.error_code)}</code>. Unexpected fields such as card data, tokens, and free-text messages are excluded from the evidence.</p><p>Source SHA-256 <code title="${esc(e.source_log_sha256)}">${esc(e.source_log_sha256.slice(0, 16))}…</code></p></div></details>`;
+  } catch {
+    $('fintechContent').innerHTML = '<p class="telemetry-empty">The packaged FinTech example could not be calculated.</p>';
+  }
 }
 
 function renderSlack() {
@@ -380,4 +398,5 @@ async function pollLive() {
 }
 render();
 pollLive();
+loadFintechExample();
 setInterval(() => { if (sourceMode === 'live') pollLive(); }, 5000);

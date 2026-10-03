@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,7 +19,10 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from service.fintech_evidence import build_payment_auth_evidence
+
 STATIC = Path(__file__).parent / "static"
+PAYMENT_FIXTURE = Path(__file__).resolve().parents[1] / "service" / "fixtures" / "payment_auth_errors.jsonl"
 TOOLSERVER_URL = os.environ.get("PITCREW_TOOLSERVER_URL", "http://127.0.0.1:9000").rstrip("/")
 READ_ENDPOINTS = {
     "incident": "/incidents/current",
@@ -67,6 +71,19 @@ async def live_snapshot() -> JSONResponse:
         "data": data,
     }
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/fintech-example")
+def fintech_example() -> JSONResponse:
+    """Compute the merged shadow-mode adapter over its packaged synthetic fixture."""
+
+    events = [json.loads(line) for line in PAYMENT_FIXTURE.read_text().splitlines() if line.strip()]
+    evidence = build_payment_auth_evidence(events)
+    return JSONResponse({
+        "source": "packaged synthetic payment-auth fixture",
+        "mode": "shadow-mode example",
+        "evidence": evidence,
+    }, headers={"Cache-Control": "no-store"})
 
 
 def main() -> None:

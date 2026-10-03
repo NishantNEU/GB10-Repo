@@ -22,6 +22,10 @@ PITCREW_TOOLSERVER_URL=http://127.0.0.1:9000 .venv/bin/python -m dashboard.serve
 
 The page still works if the toolserver is unavailable. The main pulse and workflow always show the replayed scenario. The **Live GB10** switch changes the right-side telemetry panel and lower service-log panel only, so live measurements cannot be confused with the scripted outcome. Reset from the top bar or the page header between demos.
 
+The live panel includes `/impact` counts, the corrected longest queue wait, and estimated billable work waiting from the merged data-integrity changes. Queue wait for a running job ends when that job starts; its processing time is not counted as waiting. The billable value is not lost revenue.
+
+The separate **Payment evidence example** card runs the merged FinTech adapter against its packaged synthetic payment-auth logs. It shows deduplicated failed transactions, affected customers, affected payment amount, and a source hash. This is a shadow-mode example and is not connected to the live memory incident or to the runtime agent.
+
 ## Presenter path
 
 1. **Simulate memory spike** — opens a sample incident and updates the system pulse.

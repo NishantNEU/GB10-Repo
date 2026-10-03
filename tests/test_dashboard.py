@@ -24,3 +24,18 @@ def test_live_snapshot_reads_only_existing_evidence(monkeypatch):
     assert len(seen) == len(server.READ_ENDPOINTS)
     assert {method for method, _ in seen} == {"GET"}
     assert {path for _, path in seen} == {path.split("?")[0] for path in server.READ_ENDPOINTS.values()}
+
+
+def test_fintech_example_uses_merged_synthetic_adapter():
+    result = TestClient(server.app).get("/api/fintech-example")
+
+    assert result.status_code == 200
+    payload = result.json()
+    assert payload["mode"] == "shadow-mode example"
+    evidence = payload["evidence"]
+    assert evidence["received_error_events"] == 4
+    assert evidence["failed_transactions"] == 3
+    assert evidence["affected_customers"] == 2
+    assert evidence["affected_amount_cents"] == 300000
+    assert len(evidence["source_log_sha256"]) == 64
+    assert "message" not in str(payload)
