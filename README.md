@@ -9,6 +9,7 @@ A local AI operations agent on a Dell Pro Max with GB10. It detects a slowdown i
 | [DEVSPEC.md](DEVSPEC.md) | Engineering detail and the research behind it; see its banner for the differences from the timeline |
 | [SANITY_REPORT.md](SANITY_REPORT.md) | Machine check, NemoClaw/OpenShell compatibility, vLLM memory settings |
 | [DEPLOY_STARTER_KIT.md](DEPLOY_STARTER_KIT.md) | What's in the offline kit |
+| [dashboard/README.md](dashboard/README.md) | Presenter UI, replay path, and optional read-only live feed |
 
 ## Layout and owners
 
@@ -22,6 +23,7 @@ Each person owns one folder, which keeps merges conflict-free.
 | `skills/` | Kunal (AI/ML) | Agent skill `skills/pitcrew/SKILL.md` (installed into the sandbox), trigger ([README](skills/README.md)) |
 | `chaos/`, `scripts/` | Hardware Expert | Test program, setup scripts, reset, run, OpenShell policy |
 | `tests/` | Everyone | Unit tests per folder + `test_contracts.py`, which checks the folders agree |
+| `dashboard/` | Nishant | Local presenter UI. The guided journey is replayed; the GB10 feed reads existing toolserver GET endpoints only |
 
 ## How the folders connect
 
@@ -77,5 +79,7 @@ scripts/run_all.sh        # tool server, sample service, detector in tmux sessio
 scripts/reset.sh          # back to healthy in < 60 s
 chaos/start_hog.sh        # the controlled fault: pitcrew-test-hog grows to ~30 GB
 ```
+
+For the separate presenter interface, run `.venv/bin/python -m dashboard.server` and open <http://127.0.0.1:8787> on the GB10. The browser walkthrough simulates Slack, Jira, a patch branch, and tests; its **Live GB10** panel displays real read-only toolserver evidence when available. See [dashboard/README.md](dashboard/README.md).
 
 Ports: vLLM `:8000` and tool server `:9000` are both blocked from the venue network. Secrets live in `.env` (git-ignored; template in `.env.example`).
