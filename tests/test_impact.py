@@ -32,3 +32,20 @@ def test_hand_counted_fixture(conn):
 def test_empty_queue(conn):
     r = impact.compute(conn, now=NOW)
     assert (r["delayed_jobs"], r["affected_customers"], r["backlog"], r["estimated_value"]) == (0, 0, 0, 0)
+
+
+def test_running_job_reports_queue_wait_not_total_age(conn):
+    add_job(
+        conn,
+        "CUST-NORTHWIND",
+        created_at=NOW - 120,
+        status="running",
+        started_at=NOW - 80,
+    )
+
+    result = impact.compute(conn, now=NOW, threshold_s=30)
+
+    assert result["delayed_jobs"] == 1
+    assert result["longest_wait_s"] == 40.0
+    assert result["longest_wait"] == "40s"
+    assert result["customers"][0]["longest_wait_s"] == 40.0
