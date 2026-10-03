@@ -11,6 +11,7 @@ import subprocess
 from common import config
 
 _CGROUP_ID = re.compile(r"([0-9a-f]{64})")
+_MEMORY = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMGT]?i?B)\b", re.I)
 
 
 def _docker(*args: str, timeout: float = 15) -> subprocess.CompletedProcess:
@@ -34,6 +35,30 @@ def container_of(pid: int, names: dict[str, str]) -> str | None:
     except OSError:
         return None
     return names.get(m.group(1)) if m else None
+
+
+def container_memory() -> list[dict]:
+    """Running containers with current memory use, even when host cgroups hide names."""
+    try:
+        result = _docker("stats", "--no-stream", "--format", "{{.Name}}|{{.MemUsage}}", timeout=8)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if result.returncode != 0:
+        return []
+
+    units = {"B": 1, "KB": 1000, "MB": 1000 ** 2, "GB": 1000 ** 3,
+             "TB": 1000 ** 4, "KIB": 1024, "MIB": 1024 ** 2,
+             "GIB": 1024 ** 3, "TIB": 1024 ** 4}
+    containers = []
+    for line in result.stdout.splitlines():
+        name, separator, usage = line.partition("|")
+        match = _MEMORY.match(usage) if separator else None
+        if not name or not match:
+            continue
+        memory_gb = float(match.group(1)) * units[match.group(2).upper()] / (1024 ** 3)
+        containers.append({"pid": None, "name": "docker container", "rss_gb": round(memory_gb, 1),
+                           "container": name, "source": "docker_stats"})
+    return containers
 
 
 def is_test_container(name: str) -> bool:

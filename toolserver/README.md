@@ -10,6 +10,8 @@
 | `docker_ops.py` | Container name per process (cgroup → `docker ps`), label check, `docker stop` |
 | `stub_data.py` | Fixed responses for stub mode |
 
+`GET /processes/top` also reads `docker stats --no-stream`. This keeps the named test container visible in the investigation if host process inspection or cgroup names are unavailable. Each row identifies its source (`host_process` or `docker_stats`); container memory is the container's usage, not a single process's RSS.
+
 ## Safety checks on `POST /actions/stop_test_program` (all must pass)
 
 1. The approval exists and is `pending` (single use; denied or used approvals return 409).
@@ -29,5 +31,7 @@
 - [ ] Create the Pitcrew Approvals bot (BotFather), engineer sends `/start`, put `APPROVER_BOT_TOKEN` and `ONCALL_CHAT_ID` in `.env`.
 - [ ] Check `/processes/top` shows `pitcrew-test-hog` once Docker access works.
 - [ ] Optional dashboard only if the full flow passes by 16:45.
+
+Read-only live check on the GB10: `.venv/bin/python -m toolserver.smoke`. After starting the controlled fault, run `.venv/bin/python -m toolserver.smoke --expect-hog`. This reports the incident, health, and impact values without making an approval or stop request.
 
 Test: `.venv/bin/pytest -q tests/test_toolserver.py tests/test_contracts.py`

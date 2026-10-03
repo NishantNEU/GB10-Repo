@@ -72,16 +72,28 @@ def processes_top(n: int = Query(5, ge=1, le=20)) -> dict:
     if config.TOOLSERVER_STUB:
         return {"processes": STUB["processes_top"]["processes"][:n]}
     names = docker_ops.container_names()
+    containers = docker_ops.container_memory()
+    measured_containers = {row["container"] for row in containers}
     procs = []
-    for p in psutil.process_iter(["pid", "name", "memory_info"]):
-        mi = p.info.get("memory_info")
-        if mi:
-            procs.append((mi.rss, p.info["pid"], p.info["name"]))
-    procs.sort(reverse=True)
-    return {"processes": [
-        {"pid": pid, "name": name, "rss_gb": round(rss / hostinfo.GB, 1),
-         "container": docker_ops.container_of(pid, names)}
-        for rss, pid, name in procs[:n]]}
+    try:
+        for p in psutil.process_iter(["pid", "name", "memory_info"]):
+            try:
+                mi = p.info.get("memory_info")
+                if mi:
+                    container = docker_ops.container_of(p.info["pid"], names)
+                    if container in measured_containers:
+                        continue  # Docker stats already reports that container's total memory
+                    procs.append({"pid": p.info["pid"], "name": p.info["name"],
+                                  "rss_gb": round(mi.rss / hostinfo.GB, 1),
+                                  "container": container,
+                                  "source": "host_process"})
+            except (psutil.Error, OSError):
+                continue  # processes can exit or become inaccessible during the scan
+    except (psutil.Error, OSError):
+        pass  # Docker stats can still identify the controlled test container
+    procs.extend(containers)
+    procs.sort(key=lambda item: item["rss_gb"], reverse=True)
+    return {"processes": procs[:n]}
 
 
 @app.get("/logs/service")
@@ -170,7 +182,8 @@ def create_approval(req: ApprovalRequest) -> dict:
         sent_via = approvals.send_code(approval_id, req.incident_id, req.target, req.reason, code)
     except Exception as e:
         conn.execute("UPDATE approvals SET status = 'expired', decided_at = ? WHERE id = ?", (time.time(), approval_id))
-        raise HTTPException(502, f"could not deliver the approval code: {e}") from e
+        # Network exceptions can include the Telegram URL, which contains the bot token.
+        raise HTTPException(502, "could not deliver the approval code; check the approvals bot and connection") from e
     conn.execute("UPDATE incidents SET status = 'awaiting_approval' WHERE id = ?", (req.incident_id,))
     return {"approval_id": approval_id, "status": "pending", "expires_in_s": config.APPROVAL_TTL_S,
             "code_sent_via": sent_via,
@@ -194,6 +207,9 @@ def stop_test_program(req: StopRequest) -> dict[str, Any]:
     now = time.time()
     if row["status"] != "pending":
         raise HTTPException(409, f"approval {req.approval_id} is {row['status']}; nothing was stopped")
+    incident = db.open_incident(conn)
+    if incident is None or incident["id"] != row["incident_id"]:
+        raise HTTPException(409, "approval belongs to a closed incident; nothing was stopped")
     if now - row["created_at"] > config.APPROVAL_TTL_S or row["attempts"] >= config.APPROVAL_MAX_ATTEMPTS:
         conn.execute("UPDATE approvals SET status = 'expired', decided_at = ? WHERE id = ?", (now, req.approval_id))
         raise HTTPException(403, f"approval {req.approval_id} expired; nothing was stopped")
@@ -223,4 +239,6 @@ def save_report(incident_id: str, report: Report) -> dict:
         raise HTTPException(404, f"no incident {incident_id}")
     conn.execute("UPDATE incidents SET status = ?, report_json = ? WHERE id = ?",
                  (report.status, report.model_dump_json(), incident_id))
+    conn.execute("UPDATE approvals SET status = 'expired', decided_at = ?"
+                 " WHERE incident_id = ? AND status = 'pending'", (time.time(), incident_id))
     return {"incident_id": incident_id, "status": report.status, "saved": True}

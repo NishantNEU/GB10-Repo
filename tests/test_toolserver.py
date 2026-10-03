@@ -70,6 +70,21 @@ def test_expired_code(client, monkeypatch):
     assert client.stopped == []
 
 
+def test_delivery_failure_expires_approval_without_exposing_bot_token(client, conn, monkeypatch):
+    token = "secret-bot-token"
+
+    def failed_delivery(*_args):
+        raise RuntimeError(f"https://api.telegram.org/bot{token}/sendMessage failed")
+
+    monkeypatch.setattr(approvals, "send_code", failed_delivery)
+    response = client.post("/approvals", json={"incident_id": "INC-0001", "action": "stop_test_program",
+                                              "target": config.HOG_CONTAINER, "reason": "largest memory user"})
+    assert response.status_code == 502
+    assert token not in response.text
+    approval = conn.execute("SELECT status FROM approvals").fetchone()
+    assert approval["status"] == "expired"
+
+
 def test_only_the_test_container_can_be_requested(client):
     r = client.post("/approvals", json={"incident_id": "INC-0001", "action": "stop_test_program",
                                         "target": "pitcrew-vllm", "reason": "x"})
@@ -82,6 +97,52 @@ def test_report_closes_incident(client):
     assert client.get("/incidents/current").json()["id"] is None
 
 
+def test_closing_incident_invalidates_pending_approval(client):
+    aid = _request(client)
+    result = client.post("/incidents/INC-0001/report", json={"status": "unresolved"})
+    assert result.status_code == 200
+    attempt = client.post("/actions/stop_test_program", json={"approval_id": aid,
+                                                               "code": client.sent[aid]})
+    assert attempt.status_code == 409
+    assert client.stopped == []
+
+
 def test_read_endpoints_answer(client):
     for path in ("/metrics", "/processes/top?n=3", "/logs/service?lines=5", "/queue/status", "/impact", "/health"):
         assert client.get(path).status_code == 200, path
+
+
+def test_processes_top_still_shows_hog_when_host_process_scan_is_denied(client, monkeypatch):
+    from types import SimpleNamespace
+
+    def denied_process_scan(*_args, **_kwargs):
+        raise PermissionError("host process list unavailable")
+
+    def fake_docker(*args, **_kwargs):
+        if args[0] == "stats":
+            return SimpleNamespace(returncode=0, stdout="pitcrew-test-hog|28.5GiB / 32GiB\n"
+                                   "pitcrew-vllm|22.0GiB / 64GiB\n")
+        return SimpleNamespace(returncode=0, stdout="")
+
+    monkeypatch.setattr(app_module.psutil, "process_iter", denied_process_scan)
+    monkeypatch.setattr(docker_ops, "_docker", fake_docker)
+    result = client.get("/processes/top?n=1")
+    assert result.status_code == 200
+    assert result.json()["processes"] == [{"pid": None, "name": "docker container",
+                                            "rss_gb": 28.5, "container": "pitcrew-test-hog",
+                                            "source": "docker_stats"}]
+
+
+def test_processes_top_does_not_count_container_twice(client, monkeypatch):
+    from types import SimpleNamespace
+
+    process = SimpleNamespace(info={"pid": 123, "name": "python3",
+                                    "memory_info": SimpleNamespace(rss=28 * 1024 ** 3)})
+    container_row = {"pid": None, "name": "docker container", "rss_gb": 28.5,
+                     "container": "pitcrew-test-hog", "source": "docker_stats"}
+    monkeypatch.setattr(app_module.psutil, "process_iter", lambda *_args: [process])
+    monkeypatch.setattr(docker_ops, "container_names", lambda: {"id": "pitcrew-test-hog"})
+    monkeypatch.setattr(docker_ops, "container_of", lambda *_args: "pitcrew-test-hog")
+    monkeypatch.setattr(docker_ops, "container_memory", lambda: [container_row])
+
+    assert client.get("/processes/top").json()["processes"] == [container_row]
