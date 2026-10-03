@@ -35,9 +35,21 @@ flowchart LR
   toolserver -->|docker stop, after a valid code| hog[chaos/ pitcrew-test-hog]
 ```
 
+## Branches
+
+| Branch | Owner | Edits only |
+|---|---|---|
+| `data-engineer/service` | Data Engineer | `service/` (+ its tests) |
+| `backend/toolserver` | Backend | `toolserver/` (+ its tests) |
+| `kunal/skills` | Kunal (AI/ML) | `skills/` |
+| `hardware/chaos-scripts` | Hardware Expert | `chaos/`, `scripts/` |
+| `main` | Everyone, via merge | Integration: what runs on the GB10 |
+
+`common/` and `tests/test_contracts.py` are shared: change them only after telling the team.
+
 ## Combining everyone's work
 
-1. Work only in your own folder (in your clone, `~/dev/<name>/GB10-Repo`).
+1. Work only in your own folder, on your own branch (in your clone, `~/dev/<name>/GB10-Repo`).
 2. Before every push: `scripts/check.sh`. It compiles everything, parses every script, and runs all tests, including the cross-folder contract test. **Push only when it says ALL GREEN.**
 3. At each checkpoint, pull into the integration copy `~/GB10-Repo`, run `scripts/check.sh` again, then `scripts/reset.sh`.
 
