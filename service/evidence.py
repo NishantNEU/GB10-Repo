@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
-SNAPSHOT_SCHEMA_VERSION = "1.0"
+SNAPSHOT_SCHEMA_VERSION = "1.1"
 CALCULATION_VERSION = "impact-v1"
 
 
@@ -23,6 +23,7 @@ def build_incident_snapshot(
     captured_at: float,
     trigger: Mapping[str, Any],
     impact_result: Mapping[str, Any],
+    source_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return a deterministic, detached incident-evidence snapshot."""
     if not incident_id.strip():
@@ -32,6 +33,7 @@ def build_incident_snapshot(
 
     trigger_copy = deepcopy(dict(trigger))
     impact_copy = deepcopy(dict(impact_result))
+    source_evidence_copy = deepcopy(dict(source_evidence or {}))
     customers = impact_copy.get("customers")
 
     if not isinstance(customers, list):
@@ -58,6 +60,7 @@ def build_incident_snapshot(
         "captured_at": captured_at,
         "trigger": trigger_copy,
         "impact": impact_copy,
+        "source_evidence": source_evidence_copy,
         "evidence": {
             "customer_ids": customer_ids,
             "job_ids": job_ids,

@@ -42,7 +42,7 @@ def test_snapshot_is_deterministic_json_and_detached(conn):
     )
 
     assert first == second
-    assert first["snapshot_schema_version"] == "1.0"
+    assert first["snapshot_schema_version"] == "1.1"
     assert first["calculation_version"] == "impact-v1"
     assert first["impact"]["delayed_jobs"] == 2
     assert first["evidence"]["job_ids"] == [1, 2]
