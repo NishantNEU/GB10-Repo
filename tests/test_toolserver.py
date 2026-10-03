@@ -133,16 +133,43 @@ def test_processes_top_still_shows_hog_when_host_process_scan_is_denied(client, 
                                             "source": "docker_stats"}]
 
 
-def test_processes_top_does_not_count_container_twice(client, monkeypatch):
+def test_processes_top_names_the_program_and_skips_slow_docker_stats(client, monkeypatch):
+    """When the host scan already attributes the hog, show the program row once and don't
+    pay for `docker stats` (~2 s)."""
     from types import SimpleNamespace
 
     process = SimpleNamespace(info={"pid": 123, "name": "python3",
                                     "memory_info": SimpleNamespace(rss=28 * 1024 ** 3)})
-    container_row = {"pid": None, "name": "docker container", "rss_gb": 28.5,
-                     "container": "pitcrew-test-hog", "source": "docker_stats"}
+
+    def docker_stats_must_not_run():
+        raise AssertionError("docker stats called although the host scan found the hog")
+
     monkeypatch.setattr(app_module.psutil, "process_iter", lambda *_args: [process])
     monkeypatch.setattr(docker_ops, "container_names", lambda: {"id": "pitcrew-test-hog"})
     monkeypatch.setattr(docker_ops, "container_of", lambda *_args: "pitcrew-test-hog")
-    monkeypatch.setattr(docker_ops, "container_memory", lambda: [container_row])
+    monkeypatch.setattr(docker_ops, "container_memory", docker_stats_must_not_run)
 
-    assert client.get("/processes/top").json()["processes"] == [container_row]
+    assert client.get("/processes/top").json()["processes"] == [
+        {"pid": 123, "name": "python3", "rss_gb": 28.0, "container": "pitcrew-test-hog",
+         "source": "host_process"}]
+
+
+def test_processes_top_falls_back_without_counting_twice(client, monkeypatch):
+    """Hog running but its program can't be attributed: add Docker's rows, except containers
+    the scan already accounted for."""
+    from types import SimpleNamespace
+
+    vllm_proc = SimpleNamespace(info={"pid": 7, "name": "vllm",
+                                      "memory_info": SimpleNamespace(rss=4 * 1024 ** 3)})
+    monkeypatch.setattr(app_module.psutil, "process_iter", lambda *_args: [vllm_proc])
+    monkeypatch.setattr(docker_ops, "container_names", lambda: {"a": "pitcrew-vllm", "b": "pitcrew-test-hog"})
+    monkeypatch.setattr(docker_ops, "container_of", lambda *_args: "pitcrew-vllm")
+    monkeypatch.setattr(docker_ops, "container_memory", lambda: [
+        {"pid": None, "name": "docker container", "rss_gb": 28.5, "container": "pitcrew-test-hog",
+         "source": "docker_stats"},
+        {"pid": None, "name": "docker container", "rss_gb": 7.1, "container": "pitcrew-vllm",
+         "source": "docker_stats"}])
+
+    rows = client.get("/processes/top").json()["processes"]
+    assert [(r["container"], r["source"]) for r in rows] == [
+        ("pitcrew-test-hog", "docker_stats"), ("pitcrew-vllm", "host_process")]

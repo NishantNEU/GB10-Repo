@@ -25,6 +25,7 @@ from toolserver.stub_data import STUB
 
 app = FastAPI(title="Pitcrew tool server")
 STOP_ACTION = "stop_test_program"
+PROCESS_NOTE = "rss_gb is ordinary memory; on the GB10 the AI model's GPU memory is not included"
 
 
 def _hhmmss(ts: float | None) -> str | None:
@@ -70,30 +71,33 @@ def metrics() -> dict:
 @app.get("/processes/top")
 def processes_top(n: int = Query(5, ge=1, le=20)) -> dict:
     if config.TOOLSERVER_STUB:
-        return {"processes": STUB["processes_top"]["processes"][:n]}
+        return {"processes": STUB["processes_top"]["processes"][:n], "note": PROCESS_NOTE}
     names = docker_ops.container_names()
-    containers = docker_ops.container_memory()
-    measured_containers = {row["container"] for row in containers}
     procs = []
     try:
         for p in psutil.process_iter(["pid", "name", "memory_info"]):
             try:
                 mi = p.info.get("memory_info")
                 if mi:
-                    container = docker_ops.container_of(p.info["pid"], names)
-                    if container in measured_containers:
-                        continue  # Docker stats already reports that container's total memory
                     procs.append({"pid": p.info["pid"], "name": p.info["name"],
                                   "rss_gb": round(mi.rss / hostinfo.GB, 1),
-                                  "container": container,
+                                  "container": docker_ops.container_of(p.info["pid"], names),
                                   "source": "host_process"})
             except (psutil.Error, OSError):
                 continue  # processes can exit or become inaccessible during the scan
     except (psutil.Error, OSError):
-        pass  # Docker stats can still identify the controlled test container
-    procs.extend(containers)
+        pass  # Docker stats below can still identify the controlled test container
+
+    # The host scan names the exact program and takes ~0.05 s. `docker stats` takes ~2 s, so ask
+    # Docker only when the test container may be running (or Docker's list is unavailable) and the
+    # scan couldn't attribute it, and add only containers the scan didn't already account for.
+    attributed = {row["container"] for row in procs if row["container"]}
+    if config.HOG_CONTAINER not in attributed and (not names or config.HOG_CONTAINER in names.values()):
+        procs.extend(row for row in docker_ops.container_memory() if row["container"] not in attributed)
+
     procs.sort(key=lambda item: item["rss_gb"], reverse=True)
-    return {"processes": procs[:n]}
+    return {"processes": procs[:n],
+            "note": PROCESS_NOTE}
 
 
 @app.get("/logs/service")

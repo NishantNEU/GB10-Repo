@@ -10,7 +10,7 @@
 | `docker_ops.py` | Container name per process (cgroup → `docker ps`), label check, `docker stop` |
 | `stub_data.py` | Fixed responses for stub mode |
 
-`GET /processes/top` also reads `docker stats --no-stream`. This keeps the named test container visible in the investigation if host process inspection or cgroup names are unavailable. Each row identifies its source (`host_process` or `docker_stats`); container memory is the container's usage, not a single process's RSS.
+`GET /processes/top` scans host processes first (~0.05 s; names the exact program and its container via cgroup). Only if `pitcrew-test-hog` is running but the scan couldn't attribute it does it also read `docker stats --no-stream` (~2 s), adding containers the scan didn't already count. This keeps the test container visible when host process inspection or cgroup names are unavailable. Each row identifies its source (`host_process` or `docker_stats`); container memory is the container's usage, not a single process's RSS. On the GB10, the AI model's GPU memory isn't in either number (the response carries a `note`).
 
 ## Safety checks on `POST /actions/stop_test_program` (all must pass)
 
