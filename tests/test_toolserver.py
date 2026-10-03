@@ -121,3 +121,18 @@ def test_processes_top_still_shows_hog_when_host_process_scan_is_denied(client, 
     assert result.json()["processes"] == [{"pid": None, "name": "docker container",
                                             "rss_gb": 28.5, "container": "pitcrew-test-hog",
                                             "source": "docker_stats"}]
+
+
+def test_processes_top_does_not_count_container_twice(client, monkeypatch):
+    from types import SimpleNamespace
+
+    process = SimpleNamespace(info={"pid": 123, "name": "python3",
+                                    "memory_info": SimpleNamespace(rss=28 * 1024 ** 3)})
+    container_row = {"pid": None, "name": "docker container", "rss_gb": 28.5,
+                     "container": "pitcrew-test-hog", "source": "docker_stats"}
+    monkeypatch.setattr(app_module.psutil, "process_iter", lambda *_args: [process])
+    monkeypatch.setattr(docker_ops, "container_names", lambda: {"id": "pitcrew-test-hog"})
+    monkeypatch.setattr(docker_ops, "container_of", lambda *_args: "pitcrew-test-hog")
+    monkeypatch.setattr(docker_ops, "container_memory", lambda: [container_row])
+
+    assert client.get("/processes/top").json()["processes"] == [container_row]

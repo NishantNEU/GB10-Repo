@@ -72,21 +72,26 @@ def processes_top(n: int = Query(5, ge=1, le=20)) -> dict:
     if config.TOOLSERVER_STUB:
         return {"processes": STUB["processes_top"]["processes"][:n]}
     names = docker_ops.container_names()
+    containers = docker_ops.container_memory()
+    measured_containers = {row["container"] for row in containers}
     procs = []
     try:
         for p in psutil.process_iter(["pid", "name", "memory_info"]):
             try:
                 mi = p.info.get("memory_info")
                 if mi:
+                    container = docker_ops.container_of(p.info["pid"], names)
+                    if container in measured_containers:
+                        continue  # Docker stats already reports that container's total memory
                     procs.append({"pid": p.info["pid"], "name": p.info["name"],
                                   "rss_gb": round(mi.rss / hostinfo.GB, 1),
-                                  "container": docker_ops.container_of(p.info["pid"], names),
+                                  "container": container,
                                   "source": "host_process"})
             except (psutil.Error, OSError):
                 continue  # processes can exit or become inaccessible during the scan
     except (psutil.Error, OSError):
         pass  # Docker stats can still identify the controlled test container
-    procs.extend(docker_ops.container_memory())
+    procs.extend(containers)
     procs.sort(key=lambda item: item["rss_gb"], reverse=True)
     return {"processes": procs[:n]}
 
