@@ -21,6 +21,7 @@ Each person owns one folder, which keeps merges conflict-free.
 | `toolserver/` | Backend | FastAPI tool server on `:9000`, approvals, incidents ([README](toolserver/README.md)) |
 | `skills/` | Kunal (AI/ML) | Agent skill `skills/pitcrew/SKILL.md` (installed into the sandbox), trigger ([README](skills/README.md)) |
 | `chaos/`, `scripts/` | Hardware Expert | Test program, setup scripts, reset, run, OpenShell policy |
+| `dashboard/` | Backend (optional) | Demo-screen dashboard at `/dashboard`, served by the tool server |
 | `tests/` | Everyone | Unit tests per folder + `test_contracts.py`, which checks the folders agree |
 
 ## How the folders connect
@@ -77,5 +78,7 @@ scripts/run_all.sh        # tool server, sample service, detector in tmux sessio
 scripts/reset.sh          # back to healthy in < 60 s
 chaos/start_hog.sh        # the controlled fault: pitcrew-test-hog grows to ~30 GB
 ```
+
+**Dashboard (for the demo screen):** open http://127.0.0.1:9000/dashboard on the GB10. It shows live status, memory vs. the slowdown threshold, impact numbers, the incident timeline, the approval state, and every tool call the agent makes. It's served by the tool server ([dashboard/](dashboard/)), is not in the sandbox policy (the agent can't reach it), and port 9000 is blocked from the venue network.
 
 Ports: vLLM `:8000` and tool server `:9000` are both blocked from the venue network. Secrets live in `.env` (git-ignored; template in `.env.example`).

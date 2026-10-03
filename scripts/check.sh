@@ -10,7 +10,7 @@ PY=.venv/bin/python
 rc=0
 
 say "1/3 compile Python"
-$PY -m compileall -q common service toolserver skills chaos tests || rc=1
+$PY -m compileall -q common service toolserver dashboard skills chaos tests || rc=1
 
 say "2/3 parse shell scripts"
 for f in scripts/*.sh scripts/setup/*.sh chaos/*.sh skills/*.sh; do

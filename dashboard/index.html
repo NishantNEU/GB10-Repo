@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitcrew · Mission Control</title>
+<style>
+  :root {
+    --bg: #0a0e17; --panel: #111827; --panel-2: #0f1522; --line: #1f2a3d; --text: #e6edf7;
+    --muted: #8a97ad; --faint: #5b6780;
+    --green: #22c55e; --amber: #f59e0b; --red: #ef4444; --blue: #3b82f6; --violet: #a78bfa; --cyan: #22d3ee;
+    --accent: var(--green);
+    --radius: 14px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif; }
+  body { background:
+    radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(900px 400px at 110% 0%, #1d4ed822, transparent 60%), var(--bg);
+    min-height: 100vh; transition: background .6s; }
+  .wrap { max-width: 1600px; margin: 0 auto; padding: 18px 22px 28px; }
+
+  /* top bar */
+  header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #16a34a, #0ea5e9); box-shadow: 0 6px 24px #0ea5e944; }
+  .brand h1 { font-size: 22px; letter-spacing: .14em; margin: 0; font-weight: 800; }
+  .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .chip { border: 1px solid var(--line); background: #0d1320cc; border-radius: 999px; padding: 6px 12px;
+    font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .chip b { color: var(--text); font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+  #clock { font-family: var(--mono); color: var(--text); }
+
+  /* status hero */
+  .hero { position: relative; overflow: hidden; border-radius: 18px; padding: 22px 26px; margin-bottom: 16px;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+    background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 20%, var(--panel)), var(--panel) 55%);
+    display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; transition: all .5s; }
+  .pulse { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); position: relative; }
+  .pulse::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--accent);
+    animation: ring 1.8s ease-out infinite; }
+  @keyframes ring { from { transform: scale(.6); opacity: .9 } to { transform: scale(1.8); opacity: 0 } }
+  .hero .label { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+  .hero .state { font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--accent); }
+  .hero .sub { color: var(--muted); margin-top: 4px; font-size: 14.5px; }
+  .hero .right { text-align: right; }
+  .hero .inc { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+  .hero .since { color: var(--muted); font-size: 13px; }
+  .steps { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .step { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--faint); }
+  .step.done { color: var(--text); border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .step.now { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+  /* grid + cards */
+  .grid { display: grid; gap: 16px; }
+  .kpis { grid-template-columns: repeat(5, 1fr); margin-bottom: 16px; }
+  .row2 { grid-template-columns: 2fr 1fr; margin-bottom: 16px; }
+  .row3 { grid-template-columns: 1.15fr .85fr 1fr; margin-bottom: 16px; }
+  .row4 { grid-template-columns: 1fr 1fr 1.2fr; }
+  .card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+  .card h2 { margin: 0 0 12px; font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .card h2 .hint { margin-left: auto; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--faint); }
+  .kpi .v { font-size: 38px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .kpi .k { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .kpi.alert .v { color: var(--red); } .kpi.warn .v { color: var(--amber); } .kpi.ok .v { color: var(--green); }
+  .kpi small { display: block; color: var(--faint); font-size: 11.5px; margin-top: 3px; }
+
+  /* chart */
+  .chart-head { display: flex; gap: 22px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+  .big { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .legend { color: var(--muted); font-size: 12.5px; display: flex; gap: 14px; margin-left: auto; }
+  .legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  svg { width: 100%; display: block; }
+  .bar { height: 10px; border-radius: 6px; background: #1a2436; overflow: hidden; margin: 8px 0 4px; }
+  .bar > span { display: block; height: 100%; border-radius: 6px; transition: width .6s, background .6s; }
+  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat { background: #0c1220; border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; }
+  .stat .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+    font-weight: 700; letter-spacing: .03em; }
+  .pill.healthy { background: #22c55e22; color: var(--green); } .pill.degraded { background: #f59e0b22; color: var(--amber); }
+  .pill.down { background: #ef444422; color: var(--red); }
+
+  /* timeline */
+  .tl { list-style: none; margin: 0; padding: 0; position: relative; }
+  .tl::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: var(--line); }
+  .tl li { position: relative; padding: 0 0 13px 28px; }
+  .tl li::before { content: ""; position: absolute; left: 1px; top: 5px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--panel); border: 3px solid var(--c, var(--blue)); }
+  .tl .t { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .tl .x { font-size: 14px; }
+  .empty { color: var(--faint); font-style: italic; padding: 8px 0; }
+
+  /* approval */
+  .appr { text-align: center; padding-top: 4px; }
+  .appr .icon { font-size: 38px; }
+  .appr .st { font-size: 24px; font-weight: 800; margin: 4px 0; }
+  .appr .tg { font-family: var(--mono); background: #0c1220; border: 1px solid var(--line); border-radius: 8px;
+    display: inline-block; padding: 4px 10px; margin: 6px 0; }
+  .appr .meta { color: var(--muted); font-size: 13px; }
+  .lock { margin-top: 12px; font-size: 12.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+
+  /* activity */
+  .feed { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 12.5px; max-height: 300px; overflow: hidden; }
+  .feed li { display: grid; grid-template-columns: 62px 46px 1fr auto; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid #172033; align-items: center; }
+  .feed li.new { animation: slide .35s ease; }
+  @keyframes slide { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .m { font-weight: 800; font-size: 11px; padding: 2px 6px; border-radius: 5px; text-align: center; }
+  .m.GET { background: #3b82f622; color: #93c5fd; } .m.POST { background: #a78bfa22; color: #c4b5fd; }
+  .who { font-size: 10.5px; padding: 2px 7px; border-radius: 999px; }
+  .who.agent { background: #22d3ee1f; color: var(--cyan); } .who.local { background: #64748b22; color: var(--muted); }
+  .code-ok { color: var(--green); } .code-bad { color: var(--red); }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; color: var(--faint); font-weight: 600; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 0 6px 8px; }
+  td { padding: 7px 6px; border-top: 1px solid #172033; font-variant-numeric: tabular-nums; }
+  td.num { text-align: right; font-family: var(--mono); }
+  tr.hog td { background: #ef444414; } tr.hog td:first-child { box-shadow: inset 3px 0 var(--red); }
+  .tag { font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 5px; margin-left: 6px; letter-spacing: .05em; }
+  .tag.hog { background: var(--red); color: #fff; } .tag.model { background: #3b82f633; color: #93c5fd; }
+  .tier { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+  .tier.Gold { background: #facc1526; color: #fde047; } .tier.Silver { background: #cbd5e126; color: #e2e8f0; }
+  .tier.Bronze { background: #d9770626; color: #fdba74; }
+  .logs { font-family: var(--mono); font-size: 12px; color: #b6c2d6; white-space: pre-wrap; word-break: break-word;
+    max-height: 240px; overflow: hidden; }
+  .logs .w { color: var(--amber); } .logs .e { color: var(--red); }
+  footer { color: var(--faint); font-size: 12px; text-align: center; margin-top: 18px; }
+  #offline { display: none; position: fixed; bottom: 16px; right: 16px; background: var(--red); color: #fff;
+    padding: 8px 14px; border-radius: 10px; font-weight: 700; }
+
+  @media (max-width: 1100px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .row2, .row3, .row4 { grid-template-columns: 1fr; }
+    .hero { grid-template-columns: auto 1fr; } .hero .right { grid-column: 1 / -1; text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>
+      </div>
+      <div><h1>PITCREW</h1><p>On-call AI for your local AI service</p></div>
+    </div>
+    <div class="chips">
+      <span class="chip"><span class="dot"></span><b>Local inference</b> · no cloud LLM</span>
+      <span class="chip">Model <b id="model">—</b></span>
+      <span class="chip">Host <b id="host">—</b></span>
+      <span class="chip">Agent <b>NemoClaw · OpenShell sandbox</b></span>
+      <span class="chip" id="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <section class="hero" id="hero">
+    <div class="pulse"></div>
+    <div>
+      <div class="label">Service status</div>
+      <div class="state" id="state">Connecting…</div>
+      <div class="sub" id="state-sub">Waiting for the tool server</div>
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="right">
+      <div class="inc" id="inc-id">—</div>
+      <div class="since" id="inc-since"></div>
+    </div>
+  </section>
+
+  <section class="grid kpis">
+    <div class="card kpi" id="k-delayed"><h2>Delayed jobs</h2><div class="v">—</div><div class="k">waiting longer than <span id="thr">30</span>s</div></div>
+    <div class="card kpi" id="k-cust"><h2>Customers affected</h2><div class="v">—</div><div class="k">fictional demo accounts</div></div>
+    <div class="card kpi" id="k-wait"><h2>Longest wait</h2><div class="v">—</div><div class="k">oldest delayed job</div></div>
+    <div class="card kpi" id="k-backlog"><h2>Backlog</h2><div class="v">—</div><div class="k">pending + running jobs</div></div>
+    <div class="card kpi" id="k-value"><h2>Work waiting</h2><div class="v">—</div><div class="k">estimated billable work<small>estimate, not lost revenue</small></div></div>
+  </section>
+
+  <section class="grid row2">
+    <div class="card">
+      <h2>GB10 memory <span class="hint">unified memory · last 10 min</span></h2>
+      <div class="chart-head">
+        <div><div class="big" id="mem-avail">—</div><div class="k" style="color:var(--muted);font-size:12.5px">available</div></div>
+        <div><div class="big" id="mem-used" style="color:var(--muted)">—</div><div class="k" style="color:var(--muted);font-size:12.5px">used</div></div>
+        <div class="legend"><span><i style="background:var(--cyan)"></i>available</span>
+          <span><i style="background:var(--amber)"></i>slowdown threshold</span></div>
+      </div>
+      <svg id="chart" viewBox="0 0 800 220" preserveAspectRatio="none" aria-label="Available memory over time"></svg>
+    </div>
+    <div class="card">
+      <h2>Sample AI service <span class="pill" id="svc-pill">—</span></h2>
+      <div class="mini">
+        <div class="stat"><div class="v" id="s-jpm">—</div><div class="k">jobs / min</div></div>
+        <div class="stat"><div class="v" id="s-pend">—</div><div class="k">pending</div></div>
+        <div class="stat"><div class="v" id="s-oldest">—</div><div class="k">oldest wait</div></div>
+        <div class="stat"><div class="v" id="s-run">—</div><div class="k">running</div></div>
+      </div>
+      <h2 style="margin-top:18px">GB10 GPU</h2>
+      <div style="display:flex;justify-content:space-between;color:var(--muted);font-size:13px">
+        <span id="gpu-name">—</span><span><b id="gpu-temp" style="color:var(--text)">—</b> °C</span></div>
+      <div class="bar"><span id="gpu-bar" style="width:0;background:var(--violet)"></span></div>
+      <div style="color:var(--muted);font-size:12.5px"><b id="gpu-util" style="color:var(--text)">—</b> % utilization</div>
+    </div>
+  </section>
+
+  <section class="grid row3">
+    <div class="card"><h2>Incident timeline</h2><ul class="tl" id="timeline"></ul></div>
+    <div class="card"><h2>Human approval</h2><div class="appr" id="approval"></div></div>
+    <div class="card"><h2>Agent tool calls <span class="hint">live · from the sandbox</span></h2><ul class="feed" id="feed"></ul></div>
+  </section>
+
+  <section class="grid row4">
+    <div class="card"><h2>Top memory users</h2>
+      <table><thead><tr><th>Process</th><th>Container</th><th style="text-align:right">GB</th></tr></thead><tbody id="procs"></tbody></table>
+      <div style="color:var(--faint);font-size:11.5px;margin-top:8px" id="proc-note"></div></div>
+    <div class="card"><h2>Affected customers <span class="hint">priority: tier, then wait</span></h2>
+      <table><thead><tr><th>Customer</th><th>Tier</th><th style="text-align:right">Delayed</th><th style="text-align:right">Longest</th></tr></thead><tbody id="customers"></tbody></table></div>
+    <div class="card"><h2>Service log</h2><div class="logs" id="logs"></div></div>
+  </section>
+
+  <footer>Pitcrew · Dell × NVIDIA AI Hackathon · investigation runs on the GB10 · numbers are computed by code, not the model · all customers are fictional</footer>
+</div>
+<div id="offline">Tool server unreachable</div>
+
+<script>
+const COLORS = { healthy: "#22c55e", degraded: "#f59e0b", down: "#ef4444", investigating: "#3b82f6",
+  awaiting: "#a78bfa", recovering: "#22d3ee", resolved: "#22c55e", unresolved: "#f59e0b" };
+const SUBS = {
+  healthy: "All systems normal. Pitcrew is watching memory, the service and the job queue.",
+  degraded: "The service is slowing down. Pitcrew opens an incident if jobs start waiting.",
+  down: "The sample service is not sending a heartbeat.",
+  investigating: "Pitcrew opened an incident on its own and is checking the evidence with its tools.",
+  awaiting: "Pitcrew proposed one limited fix. A one-time code went to the on-call engineer's phone.",
+  recovering: "Approved fix applied. Pitcrew is verifying that the service and queue recover.",
+  resolved: "Service recovered and verified. The incident report is saved.",
+  unresolved: "Pitcrew could not verify recovery, so it reported the incident as unresolved." };
+const STEPS = ["Detect", "Investigate", "Approve", "Fix", "Verify", "Report"];
+const STEP_AT = { healthy: -1, degraded: 0, down: 0, investigating: 1, awaiting: 2, recovering: 4, resolved: 6, unresolved: 6 };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hhmmss = ts => new Date(ts * 1000).toLocaleTimeString([], { hour12: false });
+const fmtWait = s => s >= 60 ? `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, "0")}s` : `${Math.round(s)}s`;
+const ago = s => s < 60 ? `${Math.round(s)}s ago` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s ago`;
+let localHistory = [], lastActivityTs = Infinity;  // first render: nothing counts as new
+
+function setKpi(id, value, level) {
+  const el = $(id); el.querySelector(".v").textContent = value;
+  el.classList.remove("ok", "warn", "alert"); if (level) el.classList.add(level);
+}
+
+function drawChart(points, threshold, total) {
+  const W = 800, H = 220, P = 8, svg = $("chart");
+  if (points.length < 2) { svg.innerHTML = `<text x="400" y="115" text-anchor="middle" fill="#5b6780" font-size="14">collecting samples…</text>`; return; }
+  const t0 = points[0].ts, t1 = points[points.length - 1].ts || t0 + 1, ymax = Math.max(total || 0, ...points.map(p => p.avail)) * 1.05;
+  const x = t => P + (W - 2 * P) * (t - t0) / Math.max(1, t1 - t0), y = v => H - P - (H - 2 * P) * v / ymax;
+  const line = points.map((p, i) => `${i ? "L" : "M"}${x(p.ts).toFixed(1)},${y(p.avail).toFixed(1)}`).join("");
+  const area = `${line}L${x(t1).toFixed(1)},${H - P}L${x(t0).toFixed(1)},${H - P}Z`;
+  const ty = y(threshold), last = points[points.length - 1];
+  let grid = "";
+  for (let g = 0; g <= ymax; g += 20) grid += `<line x1="${P}" x2="${W - P}" y1="${y(g)}" y2="${y(g)}" stroke="#1a2436"/><text x="${W - P - 2}" y="${y(g) - 3}" text-anchor="end" fill="#3d4a62" font-size="10">${g} GB</text>`;
+  svg.innerHTML = `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".35"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs>
+    ${grid}<path d="${area}" fill="url(#g)"/><path d="${line}" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round"/>
+    <line x1="${P}" x2="${W - P}" y1="${ty}" y2="${ty}" stroke="#f59e0b" stroke-width="1.6" stroke-dasharray="7 6"/>
+    <text x="${P + 4}" y="${ty - 6}" fill="#f59e0b" font-size="11">slowdown below ${threshold} GB available</text>
+    <circle cx="${x(last.ts)}" cy="${y(last.avail)}" r="5" fill="#22d3ee"><animate attributeName="r" values="4;7;4" dur="1.6s" repeatCount="indefinite"/></circle>`;
+}
+
+function render(s) {
+  const st = s.status.key, color = COLORS[st] || COLORS.healthy;
+  document.documentElement.style.setProperty("--accent", color);
+  $("state").textContent = s.status.label; $("state-sub").textContent = SUBS[st] || "";
+  $("model").textContent = s.config.model; $("host").textContent = s.config.host; $("thr").textContent = s.config.delay_threshold_s;
+  const at = STEP_AT[st] ?? -1;
+  $("steps").innerHTML = STEPS.map((n, i) => `<span class="step ${i < at ? "done" : i === at ? "now" : ""}">${n}</span>`).join("");
+  const inc = s.incident, open = inc && ["investigating", "awaiting", "recovering", "resolved", "unresolved"].includes(st);
+  $("inc-id").textContent = open ? inc.id : "No open incident";
+  $("inc-since").textContent = open ? `opened ${hhmmss(inc.opened_at)} · ${ago(s.now - inc.opened_at)}` : "Pitcrew is watching";
+
+  const im = s.impact;
+  setKpi("k-delayed", im.delayed_jobs, im.delayed_jobs ? "alert" : "ok");
+  setKpi("k-cust", im.affected_customers, im.affected_customers ? "alert" : "ok");
+  setKpi("k-wait", im.delayed_jobs ? im.longest_wait : "—", im.delayed_jobs ? "warn" : null);
+  setKpi("k-backlog", im.backlog, im.backlog > 10 ? "warn" : null);
+  setKpi("k-value", "$" + Number(im.estimated_value).toFixed(2), im.estimated_value ? "warn" : null);
+
+  const m = s.metrics;
+  $("mem-avail").textContent = `${m.mem_avail_gb} GB`; $("mem-used").textContent = `${m.mem_used_gb} / ${m.mem_total_gb} GB`;
+  $("mem-avail").style.color = m.mem_avail_gb < s.config.mem_threshold_gb ? "var(--amber)" : "var(--cyan)";
+  localHistory.push({ ts: s.now, avail: m.mem_avail_gb }); localHistory = localHistory.filter(p => s.now - p.ts < 600);
+  const pts = s.history.length > 5 ? s.history.map(h => ({ ts: h.ts, avail: h.mem_avail_gb })).concat([{ ts: s.now, avail: m.mem_avail_gb }]) : localHistory;
+  drawChart(pts, s.config.mem_threshold_gb, m.mem_total_gb);
+
+  const sv = s.service, pill = $("svc-pill"); pill.textContent = sv.status; pill.className = `pill ${sv.status}`;
+  $("s-jpm").textContent = sv.jobs_per_min ?? "—"; $("s-pend").textContent = sv.pending; $("s-run").textContent = sv.running;
+  $("s-oldest").textContent = sv.oldest_wait_s ? fmtWait(sv.oldest_wait_s) : "0s";
+  $("gpu-name").textContent = m.gpu_name || "GPU"; $("gpu-temp").textContent = m.gpu_temp_c ?? "—";
+  $("gpu-util").textContent = m.gpu_util ?? "—"; $("gpu-bar").style.width = `${m.gpu_util || 0}%`;
+
+  const KC = { open: "#3b82f6", approval: "#a78bfa", refused: "#ef4444", approved: "#22d3ee", denied: "#f59e0b",
+    expired: "#64748b", resolved: "#22c55e", unresolved: "#f59e0b" };
+  $("timeline").innerHTML = s.timeline.length ? s.timeline.map(e =>
+    `<li style="--c:${KC[e.kind] || "#3b82f6"}"><div class="t">${hhmmss(e.ts)}</div><div class="x">${esc(e.text)}</div></li>`).join("")
+    : `<div class="empty">No incidents yet. Pitcrew opens one automatically when jobs start waiting.</div>`;
+
+  const a = s.approval, ap = $("approval");
+  if (!a || ["healthy", "degraded", "down"].includes(st)) {
+    ap.innerHTML = `<div class="icon">🛡️</div><div class="st" style="color:var(--muted)">No request</div>
+      <div class="meta">Nothing can be stopped without a one-time code from the on-call engineer.</div>`;
+  } else {
+    const map = { pending: ["🔐", "Waiting for code", "var(--violet)"], approved: ["✅", "Approved", "var(--green)"],
+      denied: ["⛔", "Denied", "var(--amber)"], expired: ["⌛", "Expired", "var(--muted)"] }[a.status] || ["•", a.status, "var(--text)"];
+    const left = a.status === "pending" ? Math.max(0, a.expires_at - s.now) : null;
+    ap.innerHTML = `<div class="icon">${map[0]}</div><div class="st" style="color:${map[2]}">${map[1]}</div>
+      <div class="tg">stop ${esc(a.target)}</div>
+      <div class="meta">${esc(a.id)} · requested ${hhmmss(a.created_at)}${a.decided_at ? ` · decided ${hhmmss(a.decided_at)}` : ""}</div>
+      ${left !== null ? `<div class="meta" style="margin-top:6px">code expires in <b style="color:var(--text)">${fmtWait(left)}</b></div>` : ""}
+      ${a.attempts ? `<div class="meta" style="color:var(--red);margin-top:6px">${a.attempts} wrong code attempt(s) refused</div>` : ""}
+      <div class="lock">🔒 The code went straight to the engineer's phone. The AI never sees it.</div>`;
+  }
+
+  const seen = lastActivityTs; lastActivityTs = s.activity.length ? s.activity[0].ts : lastActivityTs;
+  $("feed").innerHTML = s.activity.length ? s.activity.map(c =>
+    `<li class="${c.ts > seen ? "new" : ""}"><span style="color:var(--faint)">${hhmmss(c.ts)}</span><span class="m ${c.method}">${c.method}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.path)}</span>
+      <span><span class="${c.status < 400 ? "code-ok" : "code-bad"}">${c.status}</span> <span class="who ${c.who}">${c.who}</span></span></li>`).join("")
+    : `<div class="empty">Waiting for the agent's first tool call…</div>`;
+
+  $("procs").innerHTML = s.processes.map(p => {
+    const hog = p.container === s.config.hog, model = (p.container || "").includes("vllm");
+    return `<tr class="${hog ? "hog" : ""}"><td>${esc(p.name)}${hog ? '<span class="tag hog">TEST PROGRAM</span>' : model ? '<span class="tag model">AI MODEL</span>' : ""}</td>
+      <td style="color:var(--muted)">${esc(p.container || "host")}</td><td class="num">${p.rss_gb}</td></tr>`; }).join("");
+  $("proc-note").textContent = "Process memory only; the AI model's GPU memory isn't included on the GB10.";
+
+  $("customers").innerHTML = im.customers.length ? im.customers.map(c =>
+    `<tr><td>${esc(c.name)}</td><td><span class="tier ${c.tier}">${c.tier}</span></td><td class="num">${c.delayed_jobs}</td><td class="num">${fmtWait(c.longest_wait_s)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">No customer work delayed</td></tr>`;
+
+  $("logs").innerHTML = s.logs.map(l => {
+    const cls = /WARN/.test(l) ? "w" : /ERROR/.test(l) ? "e" : "";
+    return `<div class="${cls}">${esc(l.replace(/^\d{4}-\d\d-\d\d /, "").replace(/,\d{3}/, ""))}</div>`; }).join("") || `<div class="empty">No log lines yet</div>`;
+}
+
+async function tick() {
+  try {
+    const r = await fetch("/dashboard/state", { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json()); $("offline").style.display = "none";
+  } catch (e) { $("offline").style.display = "block"; }
+}
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString([], { hour12: false }); }, 1000);
+tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>

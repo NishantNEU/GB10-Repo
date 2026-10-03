@@ -15,15 +15,25 @@ from collections import deque
 from typing import Any
 
 import psutil
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from common import config, db, hostinfo
+from dashboard import routes as dashboard
 from service import impact as impact_calc
 from toolserver import approvals, docker_ops
 from toolserver.stub_data import STUB
 
 app = FastAPI(title="Pitcrew tool server")
+app.include_router(dashboard.router)  # /dashboard: host screen only (not in the sandbox policy)
+
+
+@app.middleware("http")
+async def _record_activity(request: Request, call_next):
+    response = await call_next(request)
+    dashboard.record(request.method, request.url.path, response.status_code,
+                     request.client.host if request.client else None)
+    return response
 STOP_ACTION = "stop_test_program"
 PROCESS_NOTE = "rss_gb is ordinary memory; on the GB10 the AI model's GPU memory is not included"
 
