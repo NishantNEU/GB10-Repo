@@ -97,6 +97,16 @@ def test_report_closes_incident(client):
     assert client.get("/incidents/current").json()["id"] is None
 
 
+def test_closing_incident_invalidates_pending_approval(client):
+    aid = _request(client)
+    result = client.post("/incidents/INC-0001/report", json={"status": "unresolved"})
+    assert result.status_code == 200
+    attempt = client.post("/actions/stop_test_program", json={"approval_id": aid,
+                                                               "code": client.sent[aid]})
+    assert attempt.status_code == 409
+    assert client.stopped == []
+
+
 def test_read_endpoints_answer(client):
     for path in ("/metrics", "/processes/top?n=3", "/logs/service?lines=5", "/queue/status", "/impact", "/health"):
         assert client.get(path).status_code == 200, path

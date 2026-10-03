@@ -207,6 +207,9 @@ def stop_test_program(req: StopRequest) -> dict[str, Any]:
     now = time.time()
     if row["status"] != "pending":
         raise HTTPException(409, f"approval {req.approval_id} is {row['status']}; nothing was stopped")
+    incident = db.open_incident(conn)
+    if incident is None or incident["id"] != row["incident_id"]:
+        raise HTTPException(409, "approval belongs to a closed incident; nothing was stopped")
     if now - row["created_at"] > config.APPROVAL_TTL_S or row["attempts"] >= config.APPROVAL_MAX_ATTEMPTS:
         conn.execute("UPDATE approvals SET status = 'expired', decided_at = ? WHERE id = ?", (now, req.approval_id))
         raise HTTPException(403, f"approval {req.approval_id} expired; nothing was stopped")
@@ -236,4 +239,6 @@ def save_report(incident_id: str, report: Report) -> dict:
         raise HTTPException(404, f"no incident {incident_id}")
     conn.execute("UPDATE incidents SET status = ?, report_json = ? WHERE id = ?",
                  (report.status, report.model_dump_json(), incident_id))
+    conn.execute("UPDATE approvals SET status = 'expired', decided_at = ?"
+                 " WHERE incident_id = ? AND status = 'pending'", (time.time(), incident_id))
     return {"incident_id": incident_id, "status": report.status, "saved": True}
