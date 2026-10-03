@@ -20,3 +20,17 @@
 - [ ] Run the flow 3× with `scripts/reset.sh`; counts should match.
 
 Test: `.venv/bin/pytest -q tests/test_impact.py tests/test_detector.py`
+
+## FinTech evidence adapter (shadow mode)
+
+`service.fintech_evidence` demonstrates how Pitcrew can be applied to a
+payment-authentication incident without changing the core detector or API.
+It consumes synthetic `AUTH_CERT_EXPIRED` events, deduplicates retries by
+`transaction_id`, calculates affected customers and payment amount in integer
+cents, and emits allow-listed source lineage for the Golden Incident Record.
+
+The adapter intentionally excludes card numbers, CVV values, tokens, and
+unexpected log fields. `affected_amount_cents` is the amount associated with
+affected synthetic payments; it is not automatically claimed as lost revenue.
+All calculations are deterministic Python calculations. The local model may
+explain verified results but must not invent counts or financial amounts.
